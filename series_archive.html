@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ACEISLIVE | SERIES_SYNC</title>
     <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Inter:wght@400;900&display=swap" rel="stylesheet">
     <style>
@@ -13,12 +13,15 @@
             --card-h: 230px; 
         }
 
+        /* Prevent horizontal scroll on mobile zoom */
+        html, body { overflow-x: hidden; width: 100%; }
+
         body { 
             background: var(--bg); 
             color: #fff; 
             font-family: 'Inter', sans-serif; 
             margin: 0; 
-            padding: 180px 20px 100px 20px; 
+            padding: 160px 20px 100px 20px; 
             display: flex; 
             flex-direction: column; 
             align-items: center;
@@ -27,19 +30,18 @@
         .header-controls { 
             position: fixed; top: 0; left: 0; width: 100%; 
             background: rgba(5, 5, 5, 0.9); backdrop-filter: blur(15px); 
-            z-index: 2000; padding: 30px 0; border-bottom: 1px solid rgba(255,255,255,0.05); 
+            z-index: 3000; padding: 25px 0; border-bottom: 1px solid rgba(255,255,255,0.05); 
             display: flex; flex-direction: column; align-items: center; gap: 15px; 
         }
 
-        h1 { font-family: 'Syncopate', sans-serif; text-transform: uppercase; letter-spacing: 5px; color: var(--ace-red); margin: 0; font-size: 1.2rem; }
+        h1 { font-family: 'Syncopate', sans-serif; text-transform: uppercase; letter-spacing: 5px; color: var(--ace-red); margin: 0; font-size: 1.2rem; text-align: center; }
         
         .archive-grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); 
-            gap: 60px; width: 100%; max-width: 1400px; justify-items: center; 
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+            gap: 40px; width: 100%; max-width: 1400px; justify-items: center; 
         }
 
-        /* The Fix: Card Container and Z-Index */
         .card-container { 
             width: var(--card-w); 
             height: var(--card-h); 
@@ -48,10 +50,7 @@
             transition: z-index 0.3s;
         }
         
-        /* High z-index on hover so it stays on top of headers/other cards */
-        .card-container:hover { 
-            z-index: 2500; 
-        }
+        .card-container:hover { z-index: 2500; }
 
         .card-inner { 
             position: relative; 
@@ -61,16 +60,13 @@
             border-radius: 4px;
         }
 
-        /* Regular zoom and flip */
+        /* Desktop Zoom */
         .card-container:hover .card-inner { 
-            transform: scale(2.6) rotateY(180deg);
+            transform: scale(2.4) rotateY(180deg);
             box-shadow: 0 0 40px var(--ace-red);
         }
 
-        /* Adaptive Zoom Origin: Prevents clipping at edges */
-        /* If card is near top of screen, it zooms from the top */
         .card-container.near-top:hover .card-inner { transform-origin: top; }
-        /* If card is near bottom of screen, it zooms from the bottom */
         .card-container.near-bottom:hover .card-inner { transform-origin: bottom; }
 
         .front, .back { 
@@ -93,12 +89,40 @@
         .bar-bg { height: 3px; background: #1a1a1a; margin-top: 4px; }
         .bar-fill { height: 100%; background: var(--ace-red); }
 
+        .filter-group { display: flex; gap: 10px; }
         button { 
-            background: #111; color: #888; border: 1px solid #333; padding: 10px 24px; cursor: pointer; 
-            text-transform: uppercase; font-size: 0.7rem; font-family: 'Syncopate', sans-serif;
+            background: #111; color: #888; border: 1px solid #333; padding: 8px 20px; cursor: pointer; 
+            text-transform: uppercase; font-size: 0.65rem; font-family: 'Syncopate', sans-serif;
             transition: 0.3s; 
         }
         button.active { border-color: var(--ace-red); color: #fff; }
+
+        /* --- MOBILE TWEAKS --- */
+        @media (max-width: 768px) {
+            :root {
+                --card-w: 100px;
+                --card-h: 150px;
+            }
+            body { padding: 140px 10px 50px 10px; }
+            
+            .archive-grid { 
+                grid-template-columns: repeat(3, 1fr); /* 3 cards per row */
+                gap: 15px; 
+            }
+
+            h1 { font-size: 0.8rem; letter-spacing: 2px; }
+
+            /* Adjusted zoom for mobile so it fits the screen width */
+            .card-container:hover .card-inner { 
+                transform: scale(1.8) rotateY(180deg);
+            }
+            
+            /* Hide summary on mobile cards to keep it clean */
+            .summary { display: none; }
+            .title { font-size: 0.35rem; }
+            .score-val { font-size: 0.7rem; }
+            .back { padding: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -114,7 +138,6 @@
     <div class="archive-grid" id="grid"></div>
 
     <script>
-        // Use your original games array here
         const games = [
             { n: "A Plague Tale: Innocence", s: 9, d: "In medieval France, siblings Amicia and Hugo flee the Inquisition and supernatural rats.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/752590/library_600x900_2x.jpg" },
             { n: "Assassins Creed 3", s: 7, d: "Connor Kenway fights for freedom during the American Revolution.", i: "ac3.jpg" },
@@ -169,6 +192,11 @@
 
         function render(sortBy) {
             grid.innerHTML = '';
+            
+            // Handle active button state
+            document.querySelectorAll('.filter-group button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${sortBy}`).classList.add('active');
+
             if(sortBy === 'name') games.sort((a, b) => a.n.localeCompare(b.n));
             else games.sort((a, b) => b.s - a.s);
 
@@ -176,12 +204,9 @@
                 const card = document.createElement('div');
                 card.className = 'card-container';
                 
-                // Detection logic: Check if card is too high or too low on screen
-                card.onmouseenter = (e) => {
+                card.onmouseenter = () => {
                     const rect = card.getBoundingClientRect();
-                    // If card is in the top 30% of screen, zoom from top
                     if (rect.top < window.innerHeight * 0.3) card.classList.add('near-top');
-                    // If card is in the bottom 30% of screen, zoom from bottom
                     else if (rect.bottom > window.innerHeight * 0.7) card.classList.add('near-bottom');
                 };
                 
