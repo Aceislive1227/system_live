@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ACEISLIVE // TACTICAL HUB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Inter:wght@400;900&family=Permanent+Marker&family=Bangers&family=Press+Start+2P&family=Rock+Salt&family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        html, body { 
+            overflow: hidden; 
+            height: 100%; width: 100%; margin: 0; 
+            background: #000; color: #fff; 
+            font-family: 'Inter', sans-serif; 
+            touch-action: none; 
+        }
+
+        .stage { position: relative; height: 100dvh; width: 100vw; display: flex; align-items: center; justify-content: center; }
+
+        /* --- GAMING BOOT HUD SECTION --- */
+        .cloth { 
+            position: absolute; inset: 0; 
+            background: #000; z-index: 100; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            transition: all 0.6s cubic-bezier(0.95, 0.05, 0.795, 0.035);
+            overflow: hidden;
+        }
+
+        .is-unveiled .cloth { 
+            transform: scaleY(0.005) scaleX(1.2);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .corner { position: absolute; width: 30px; height: 30px; border: 2px solid #ff0000; opacity: 0.5; }
+        .top-left { top: 30px; left: 30px; border-right: 0; border-bottom: 0; }
+        .top-right { top: 30px; right: 30px; border-left: 0; border-bottom: 0; }
+        .bottom-left { bottom: 30px; left: 30px; border-right: 0; border-top: 0; }
+        .bottom-right { bottom: 30px; right: 30px; border-left: 0; border-top: 0; }
+
+        .rec-dot { width: 8px; height: 8px; background: #ff0000; border-radius: 50%; animation: blink 1s steps(2) infinite; }
+        @keyframes blink { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+        @keyframes load {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* --- TRANSITION LOGIC --- */
+        .machine-room, .hub-room, .media-deck, .doodle-room {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.5s ease;
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+            visibility: hidden;
+        }
+
+        .machine-room { 
+            opacity: 1; 
+            transform: scale(1); 
+            visibility: visible; 
+            pointer-events: auto; 
+            z-index: 50; 
+            align-items: center;
+            justify-content: center;
+        }
+
+        .is-hub .hub-room, 
+        .is-media .media-deck, 
+        .is-doodle .doodle-room { 
+            opacity: 1; 
+            transform: scale(1); 
+            pointer-events: auto;
+            visibility: visible;
+            z-index: 70;
+        }
+
+        .is-hub .machine-room, 
+        .is-media .hub-room, 
+        .is-doodle .media-deck { 
+            opacity: 0;
+            transform: scale(0.9);
+            z-index: 40;
+        }
+
+        .hub-room, .media-deck { overflow-y: auto; padding: 20px; align-items: center; }
+        .media-deck { background: #050505; padding: 40px 20px; }
+        
+        /* FIXED: Graffiti Wall Layout */
+        .doodle-room { 
+            background: #080808; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+        }
+
+        .syncopate { font-family: 'Syncopate', sans-serif; }
+        
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            backdrop-filter: blur(15px); 
+            transition: 0.3s; 
+            position: relative; 
+            overflow: hidden; 
+        }
+        .glass-panel:hover { border-color: rgba(255, 0, 0, 0.4); background: rgba(255, 0, 0, 0.02); }
+
+        /* FIXED: Canvas grows to fill space */
+        #canvas { 
+            flex: 1; 
+            position: relative; 
+            cursor: crosshair; 
+            background-image: radial-gradient(#1a1a1a 1px, transparent 1px); 
+            background-size: 40px 40px; 
+            width: 100%;
+        }
+        
+        .doodle-item { 
+            position: absolute !important; 
+            white-space: nowrap; 
+            user-select: none; 
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            z-index: 10;
+        }
+
+        .doodle-item:hover { 
+            z-index: 100 !important; 
+            transform: scale(1.2) !important; 
+            filter: drop-shadow(0 0 10px var(--item-color));
+            text-shadow: 0 0 8px var(--item-color);
+        }
+
+        .bonded {
+            color: #ff0055 !important;
+            font-family: 'Rock Salt', cursive !important;
+            font-size: 30px !important;
+            z-index: 100 !important;
+            --item-color: #ff0055 !important;
+        }
+        .bonded:hover { text-shadow: 0 0 15px #ff0055 !important; }
+
+        .neon-heart { 
+            position: absolute; color: #ff0055; text-shadow: 0 0 10px #ff0055; 
+            font-size: 28px; animation: beat 0.8s infinite alternate; 
+            pointer-events: none; z-index: 99; 
+        }
+        @keyframes beat { from { transform: scale(1); } to { transform: scale(1.2); } }
+
+        .shorts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; width: 100%; max-width: 1100px; margin-top: 30px; }
+        .short-card { aspect-ratio: 9/16; background: #111; border: 1px solid #222; position: relative; overflow: hidden; cursor: pointer; transition: 0.4s; }
+        .short-card:hover { border-color: #ff0000; transform: scale(1.03); }
+        .short-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; transition: 0.5s; }
+        .short-card:hover img { opacity: 1; }
+
+        .waveform { display: flex; align-items: center; gap: 3px; height: 20px; }
+        .bar { width: 2px; background: #ff0000; animation: bounce 1s ease-in-out infinite; }
+        @keyframes bounce { 0%, 100% { height: 4px; } 50% { height: 18px; } }
+
+        .scanline { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: rgba(255, 0, 0, 0.05); animation: scan 4s linear infinite; pointer-events: none; }
+        @keyframes scan { 0% { top: -10%; } 100% { top: 110%; } }
+
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-thumb { background: #ff0000; }
+    </style>
+</head>
+<body>
+
+    <div class="stage" id="app">
+        
+        <div class="cloth">
+            <div class="corner top-left"></div>
+            <div class="corner top-right"></div>
+            <div class="corner bottom-left"></div>
+            <div class="corner bottom-right"></div>
+
+            <div class="flex flex-col items-center z-10 text-center">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="rec-dot"></div>
+                    <span class="syncopate text-red-600 text-[10px] tracking-[0.4em]">SYSTEM_LIVE // ACEISLIVE</span>
+                </div>
+                <h1 class="text-6xl md:text-8xl font-black italic tracking-tighter mb-2">BOOTING<span class="text-red-600">_V2</span></h1>
+                <div class="w-48 h-[1px] bg-white/10 relative overflow-hidden mb-12">
+                    <div class="absolute inset-0 bg-red-600 animate-[load_2s_infinite]"></div>
+                </div>
+                <p class="text-[9px] font-mono text-gray-400 tracking-[0.6em] uppercase animate-pulse">[ FLICK UP TO ENTER ARENA ]</p>
+            </div>
+
+            <div class="absolute bottom-10 w-full px-10 flex justify-between items-end opacity-30 font-mono text-[7px] tracking-widest">
+                <div><p>BITRATE: 8500 KBPS</p><p>DROPPED_FRAMES: 0</p></div>
+                <div class="text-right"><p>ENCODER: NVENC_H264</p><p>OBJECTIVE: DOMINATION</p></div>
+            </div>
+        </div>
+
+        <div class="machine-room">
+            <div class="text-center p-6">
+                <p class="text-[9px] syncopate text-red-600 mb-4 tracking-[0.5em] opacity-60 uppercase">UPLINK_ESTABLISHED</p>
+                <h2 class="text-7xl md:text-9xl font-black italic tracking-tighter uppercase mb-6">ACEIS<span class="text-red-600">LIVE</span></h2>
+                <div class="flex flex-col md:flex-row gap-4 justify-center">
+                    <button onclick="unveilHub()" class="bg-red-600 text-black py-4 px-12 text-[10px] font-black tracking-[0.3em] uppercase hover:bg-white transition-all">Command_Center</button>
+                    <a href="https://discord.gg/RMSMNUHTTq" target="_blank" class="border border-white/20 text-white py-4 px-12 text-[10px] font-black tracking-[0.3em] uppercase hover:bg-[#5865F2] hover:border-[#5865F2] transition-all text-center flex items-center justify-center gap-2">
+                        <i data-lucide="message-square" class="w-3"></i> ACE's REALM
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="hub-room">
+            <div class="scanline"></div>
+            <div class="w-full max-w-6xl relative z-10 px-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6 border-b border-white/5 pb-8">
+                    <div>
+                        <h2 class="syncopate text-3xl font-black tracking-tighter">TACTICAL_STATION_01</h2>
+                        <div class="flex items-center gap-4 mt-2">
+                            <span class="status-dot w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                            <p class="status-text text-[10px] font-bold tracking-[0.3em] text-red-600 uppercase">Status: Initializing...</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-8">
+                        <div class="text-right">
+                            <p class="text-[8px] text-gray-500 uppercase">Uplink_Latency</p>
+                            <p id="latency-val" class="text-xs font-mono font-bold">--ms</p>
+                        </div>
+                        <div class="waveform">
+                            <div class="bar" style="animation-delay: 0.1s"></div>
+                            <div class="bar" style="animation-delay: 0.3s"></div>
+                            <div class="bar" style="animation-delay: 0.2s"></div>
+                            <div class="bar" style="animation-delay: 0.4s"></div>
+                        </div>
+                        <button onclick="goToMedia()" class="border border-red-600/30 text-red-600 text-[9px] font-black px-6 py-2 uppercase tracking-widest hover:bg-red-600 hover:text-white transition">Media_Deck</button>
+                        <button onclick="resetToMain()" class="bg-white text-black text-[9px] font-black px-6 py-2 uppercase tracking-widest hover:bg-red-600 hover:text-white transition">Exit</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-4 space-y-4">
+                        <h3 class="text-[10px] font-black text-gray-500 tracking-widest uppercase mb-2">Social_Uplinks</h3>
+                        
+                        <a href="series_archive.html" target="_blank" class="glass-panel p-4 flex items-center justify-between group border-l-2 border-l-red-600">
+                            <div class="flex items-center gap-4">
+                                <i data-lucide="database" class="w-5 text-red-600"></i>
+                                <div><p class="text-[8px] text-gray-500 uppercase">Database</p><p class="text-xs font-bold uppercase group-hover:text-red-600">Series_Archive</p></div>
+                            </div>
+                            <i data-lucide="chevron-right" class="w-3 opacity-20 group-hover:opacity-100 transition-opacity"></i>
+                        </a>
+
+                        <a href="https://www.twitch.tv/aceislivetv" target="_blank" class="glass-panel p-4 flex items-center justify-between group">
+                            <div class="flex items-center gap-4">
+                                <i data-lucide="twitch" class="w-5 text-purple-500"></i>
+                                <div><p class="text-[8px] text-gray-500 uppercase">Twitch</p><p class="text-xs font-bold uppercase group-hover:text-purple-500">AceIsLiveTV</p></div>
+                            </div>
+                            <i data-lucide="external-link" class="w-3 opacity-20"></i>
+                        </a>
+                        <a href="https://www.youtube.com/channel/UC4RQiBZs80LW7IKIk9vHCjA" target="_blank" class="glass-panel p-4 flex items-center justify-between group">
+                            <div class="flex items-center gap-4">
+                                <i data-lucide="youtube" class="w-5 text-red-600"></i>
+                                <div><p class="text-[8px] text-gray-500 uppercase">YouTube</p><p class="text-xs font-bold uppercase group-hover:text-red-600">ACEISLIVE</p></div>
+                            </div>
+                            <i data-lucide="external-link" class="w-3 opacity-20"></i>
+                        </a>
+                        <a href="https://www.instagram.com/sahilsoni_12.27/" target="_blank" class="glass-panel p-4 flex items-center justify-between group">
+                            <div class="flex items-center gap-4">
+                                <i data-lucide="instagram" class="w-5 text-pink-500"></i>
+                                <div><p class="text-[8px] text-gray-500 uppercase">Instagram</p><p class="text-xs font-bold uppercase group-hover:text-pink-500">sahilsoni_12.27</p></div>
+                            </div>
+                            <i data-lucide="external-link" class="w-3 opacity-20"></i>
+                        </a>
+                    </div>
+                    <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="glass-panel p-6 border-l-4 border-l-red-600">
+                            <div class="flex justify-between items-start mb-6"><span class="text-[10px] syncopate text-red-600">ENGINE_CORE</span><i data-lucide="cpu" class="w-4 text-red-600"></i></div>
+                            <h4 class="text-4xl font-black italic tracking-tighter uppercase leading-none">RYZEN 7 <span class="text-red-600">3700X</span></h4>
+                        </div>
+                        <div class="glass-panel p-6 border-l-4 border-l-white">
+                            <div class="flex justify-between items-start mb-6"><span class="text-[10px] syncopate text-gray-400">GRAPHICS_UNIT</span><i data-lucide="zap" class="w-4 text-white"></i></div>
+                            <h4 class="text-4xl font-black italic tracking-tighter uppercase leading-none">RTX 2060 <span class="text-red-600">SUPER</span></h4>
+                        </div>
+                        <div class="glass-panel p-8 md:col-span-2 flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div><p class="text-[10px] syncopate text-red-600 mb-2">PRIMARY_OUTPUT</p><h4 class="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight">SAMSUNG<br>ODYSSEY G4</h4></div>
+                            <div class="relative"><div class="text-8xl md:text-9xl font-black italic opacity-10 tracking-tighter">240HZ</div><div class="absolute inset-0 flex items-center justify-center"><div class="text-xl font-bold tracking-[1em] text-red-600 animate-pulse">ULTRA</div></div></div>
+                        </div>
+                        <div class="glass-panel p-6 md:col-span-2 bg-gradient-to-r from-red-900/10 to-transparent">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                <div><p class="text-[8px] text-gray-500 uppercase mb-1">Keyboard</p><p class="text-xs font-bold uppercase">CB GK-16</p></div>
+                                <div><p class="text-[8px] text-gray-500 uppercase mb-1">Mouse</p><p class="text-xs font-bold uppercase">Logi G402</p></div>
+                                <div><p class="text-[8px] text-gray-500 uppercase mb-1">Mic</p><p class="text-xs font-bold uppercase">Fifine T669</p></div>
+                                <div><p class="text-[8px] text-gray-500 uppercase mb-1">Webcam</p><p class="text-xs font-bold uppercase">Kreo Owl</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="media-deck">
+            <div class="w-full max-w-6xl px-4">
+                <div class="flex justify-between items-center border-b border-white/5 pb-6">
+                    <div>
+                        <h2 class="syncopate text-3xl font-black tracking-tighter uppercase">Media_Deck</h2>
+                        <p class="text-[9px] text-red-600 font-bold tracking-[0.4em] uppercase">Broadcasting_Shorts: @aceislivetv</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <button onclick="goToDoodle()" class="bg-red-600 text-black text-[9px] font-black px-6 py-2 uppercase hover:bg-white transition">Community_Wall</button>
+                        <button onclick="unveilHub()" class="border border-white/20 text-white text-[9px] font-black px-6 py-2 uppercase hover:bg-white hover:text-black transition">Tactical_Specs</button>
+                    </div>
+                </div>
+                <div id="shorts-container" class="shorts-grid">
+                    <div class="col-span-full py-20 text-center opacity-20 uppercase tracking-widest text-xs animate-pulse">Syncing_Shorts_Feed...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="doodle-room">
+            <div class="p-6 border-b border-white/5 flex justify-between items-center bg-black/50 backdrop-blur-md z-50">
+                <div>
+                    <h2 class="syncopate text-2xl font-black tracking-tighter">THE_GRAFFITI_WALL</h2>
+                    <p class="text-[8px] text-gray-500 tracking-[0.3em] uppercase">Leave your mark in the ACE ecosystem</p>
+                </div>
+                <button onclick="goToMedia()" class="bg-white text-black text-[9px] font-black px-6 py-2 uppercase tracking-widest hover:bg-red-600 hover:text-white transition">Back_To_Deck</button>
+            </div>
+
+            <div id="canvas"></div>
+
+            <div class="p-6 bg-zinc-950 border-t border-white/5 flex gap-4 z-50">
+                <input type="text" id="doodleInput" placeholder="INITIALIZE_SIGNATURE..." class="flex-grow bg-black border border-white/10 p-4 text-xs font-bold tracking-widest uppercase outline-none focus:border-red-600 transition">
+                <button onclick="sendDoodle()" id="sendBtn" class="bg-red-600 px-10 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition">Transmit</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let stage = 0;
+        const appBody = document.body;
+        const SHEET_URL = "https://script.google.com/macros/s/AKfycby30-SyqrRx7QyRjFkS0Cgwv8UwG7CXzbPowwIa79Qf2IH-dE1nliPlC2ySw6SzTd1B/exec";
+
+        const updateStage = () => {
+            appBody.classList.remove('is-unveiled', 'is-hub', 'is-media', 'is-doodle');
+            if (stage >= 1) appBody.classList.add('is-unveiled');
+            if (stage === 2) appBody.classList.add('is-hub');
+            if (stage === 3) { appBody.classList.add('is-media'); fetchShorts(); }
+            if (stage === 4) { appBody.classList.add('is-doodle'); loadDoodles(); }
+        };
+
+        const unveilHub = () => { stage = 2; updateStage(); };
+        const goToMedia = () => { stage = 3; updateStage(); };
+        const goToDoodle = () => { stage = 4; updateStage(); };
+        const resetToMain = () => { stage = 1; updateStage(); };
+
+        const fonts = ['Permanent Marker', 'Bangers', 'Press Start 2P', 'Rock Salt', 'Orbitron', 'Syncopate', 'Inter'];
+        const colors = ['#ffffff', '#ff0000', '#5865F2', '#ff00ff', '#00ffcc', '#ffff00', '#00ff00'];
+
+        function createDoodleElement(item) {
+            const el = document.createElement('div');
+            el.className = 'doodle-item';
+            let rawX = parseFloat(item.x);
+            let rawY = parseFloat(item.y);
+            if (isNaN(rawX) || rawX <= 5 || rawX > 85) rawX = Math.random() * 80 + 5;
+            if (isNaN(rawY) || rawY <= 5 || rawY > 85) rawY = Math.random() * 80 + 5;
+            const word = item.word.toUpperCase();
+            const randomSize = (Math.floor(Math.random() * 16) + 14) + "px";
+            const randomFont = item.font || fonts[Math.floor(Math.random() * fonts.length)];
+            const randomColor = item.color || colors[Math.floor(Math.random() * colors.length)];
+            const randomRotation = item.transform || `rotate(${(Math.random()*40)-20}deg)`;
+            el.innerText = word;
+            el.style.left = rawX + "%";
+            el.style.top = rawY + "%";
+            el.style.color = randomColor;
+            el.style.fontFamily = randomFont;
+            el.style.fontSize = randomSize;
+            el.style.transform = randomRotation;
+            el.style.setProperty('--item-color', randomColor);
+            document.getElementById('canvas').appendChild(el);
+            bondPairs();
+        }
+
+        function bondPairs() {
+            const items = Array.from(document.querySelectorAll('.doodle-item'));
+            const aces = items.filter(i => i.innerText === 'ACE' && !i.dataset.paired);
+            const tanus = items.filter(i => i.innerText === 'TANU' && !i.dataset.paired);
+            aces.forEach((ace, index) => {
+                const tanu = tanus[index];
+                if (tanu) {
+                    ace.dataset.paired = "true"; tanu.dataset.paired = "true";
+                    ace.classList.add('bonded'); tanu.classList.add('bonded');
+                    const aX = parseFloat(ace.style.left); const aY = parseFloat(ace.style.top);
+                    tanu.style.setProperty('left', (aX + 10) + "%", 'important');
+                    tanu.style.setProperty('top', (aY + 1) + "%", 'important');
+                    tanu.style.transform = "rotate(-5deg)";
+                    const heart = document.createElement('div');
+                    heart.className = 'neon-heart'; heart.innerHTML = '❤';
+                    heart.style.left = (aX + 6) + "%"; heart.style.top = (aY - 8) + "%";
+                    document.getElementById('canvas').appendChild(heart);
+                }
+            });
+        }
+
+        async function sendDoodle() {
+            const input = document.getElementById('doodleInput');
+            const msg = input.value.trim();
+            if(!msg) return;
+            const payload = { word: msg, font: fonts[Math.floor(Math.random() * fonts.length)], color: colors[Math.floor(Math.random() * colors.length)], x: (Math.random() * 80 + 5), y: (Math.random() * 80 + 5) };
+            createDoodleElement(payload);
+            input.value = '';
+            fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        }
+
+        async function loadDoodles() {
+            try {
+                const res = await fetch(SHEET_URL);
+                const data = await res.json();
+                document.getElementById('canvas').innerHTML = '';
+                if(data && Array.isArray(data)) data.forEach(item => createDoodleElement(item));
+            } catch(e) { console.log("Database offline."); }
+        }
+
+        const statusText = document.querySelector('.status-text');
+        const statusDot = document.querySelector('.status-dot');
+        const latencyVal = document.getElementById('latency-val');
+
+        function updateSystemStatus() {
+            if (navigator.onLine) { statusText.innerText = "Status: Optimized & Active"; statusDot.style.background = "#ff0000"; }
+            else { statusText.innerText = "Status: Connection_Lost"; statusDot.style.background = "#fff"; }
+        }
+
+        async function calcLatency() {
+            const start = Date.now();
+            try { await fetch(window.location.href, { mode: 'no-cors', cache: 'no-cache' }); latencyVal.innerText = (Date.now() - start) + "ms"; }
+            catch (e) { latencyVal.innerText = "OFFLINE"; }
+        }
+
+        async function fetchShorts() {
+            const CHANNEL_ID = 'UC4RQiBZs80LW7IKIk9vHCjA';
+            const SHORTS_PLAYLIST_ID = CHANNEL_ID.replace('UC', 'UUSH');
+            const rssUrl = `https://www.youtube.com/feeds/videos.xml?playlist_id=${SHORTS_PLAYLIST_ID}`;
+            const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+            try {
+                const res = await fetch(api);
+                const data = await res.json();
+                const container = document.getElementById('shorts-container');
+                if (!data.items || data.items.length === 0) return;
+                container.innerHTML = '';
+                data.items.forEach(v => {
+                    const videoId = v.guid.split(':').pop();
+                    const card = document.createElement('div');
+                    card.className = 'short-card group';
+                    card.onclick = () => window.open(`https://www.youtube.com/shorts/${videoId}`, '_blank');
+                    card.innerHTML = `<img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg"><div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div><div class="absolute bottom-0 p-3"><p class="text-[9px] font-black uppercase truncate mb-1">${v.title}</p></div>`;
+                    container.appendChild(card);
+                });
+            } catch (e) { console.error("Feed Error"); }
+        }
+
+        window.addEventListener('wheel', (e) => {
+            if (e.deltaY > 50 && stage < 4) { stage++; updateStage(); }
+            if (e.deltaY < -50 && stage > 0) { stage--; updateStage(); }
+        });
+
+        let yStart = 0;
+        window.addEventListener('touchstart', e => yStart = e.touches[0].clientY);
+        window.addEventListener('touchend', e => {
+            let yEnd = e.changedTouches[0].clientY;
+            if (yStart > yEnd + 50 && stage < 4) { stage++; updateStage(); }
+            if (yStart < yEnd - 50 && stage > 0) { stage--; updateStage(); }
+        });
+
+        document.getElementById('doodleInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendDoodle(); });
+
+        updateSystemStatus(); setInterval(calcLatency, 3000); calcLatency();
+    </script>
+</body>
+</html>

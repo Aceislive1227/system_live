@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACEISLIVE | SERIES_SYNC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --ace-red: #ff0000; 
+            --bg: #050505; 
+            --card-w: 155px; 
+            --card-h: 230px; 
+        }
+
+        body { 
+            background: var(--bg); 
+            color: #fff; 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            padding: 180px 20px 100px 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+        }
+
+        .header-controls { 
+            position: fixed; top: 0; left: 0; width: 100%; 
+            background: rgba(5, 5, 5, 0.9); backdrop-filter: blur(15px); 
+            z-index: 2000; padding: 30px 0; border-bottom: 1px solid rgba(255,255,255,0.05); 
+            display: flex; flex-direction: column; align-items: center; gap: 15px; 
+        }
+
+        h1 { font-family: 'Syncopate', sans-serif; text-transform: uppercase; letter-spacing: 5px; color: var(--ace-red); margin: 0; font-size: 1.2rem; }
+        
+        .archive-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); 
+            gap: 60px; width: 100%; max-width: 1400px; justify-items: center; 
+        }
+
+        /* The Fix: Card Container and Z-Index */
+        .card-container { 
+            width: var(--card-w); 
+            height: var(--card-h); 
+            perspective: 1200px; 
+            z-index: 1; 
+            transition: z-index 0.3s;
+        }
+        
+        /* High z-index on hover so it stays on top of headers/other cards */
+        .card-container:hover { 
+            z-index: 2500; 
+        }
+
+        .card-inner { 
+            position: relative; 
+            width: 100%; height: 100%; 
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            transform-style: preserve-3d; 
+            border-radius: 4px;
+        }
+
+        /* Regular zoom and flip */
+        .card-container:hover .card-inner { 
+            transform: scale(2.6) rotateY(180deg);
+            box-shadow: 0 0 40px var(--ace-red);
+        }
+
+        /* Adaptive Zoom Origin: Prevents clipping at edges */
+        /* If card is near top of screen, it zooms from the top */
+        .card-container.near-top:hover .card-inner { transform-origin: top; }
+        /* If card is near bottom of screen, it zooms from the bottom */
+        .card-container.near-bottom:hover .card-inner { transform-origin: bottom; }
+
+        .front, .back { 
+            position: absolute; width: 100%; height: 100%; 
+            backface-visibility: hidden; border-radius: 4px; 
+            overflow: hidden; border: 1px solid rgba(255,255,255,0.1); 
+        }
+
+        .front img { width: 100%; height: 100%; object-fit: cover; background: #111; }
+
+        .back { 
+            background: #0a0a0a; transform: rotateY(180deg); padding: 12px; 
+            display: flex; flex-direction: column; border: 1.5px solid var(--ace-red); box-sizing: border-box; 
+        }
+
+        .title { font-family: 'Syncopate', sans-serif; font-size: 0.5rem; color: var(--ace-red); font-weight: 900; margin: 0; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .summary { font-size: 0.38rem; line-height: 1.4; color: #ccc; flex-grow: 1; margin-top: 8px; }
+        .rating-box { border-top: 1px solid #333; padding-top: 6px; margin-top: 4px; }
+        .score-val { font-size: 1rem; font-weight: bold; font-family: 'Syncopate', sans-serif;}
+        .bar-bg { height: 3px; background: #1a1a1a; margin-top: 4px; }
+        .bar-fill { height: 100%; background: var(--ace-red); }
+
+        button { 
+            background: #111; color: #888; border: 1px solid #333; padding: 10px 24px; cursor: pointer; 
+            text-transform: uppercase; font-size: 0.7rem; font-family: 'Syncopate', sans-serif;
+            transition: 0.3s; 
+        }
+        button.active { border-color: var(--ace-red); color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="header-controls">
+        <h1>// SERIES_SYNC_ARCHIVE //</h1>
+        <div class="filter-group">
+            <button id="btn-name" class="active" onclick="render('name')">Title</button>
+            <button id="btn-rating" onclick="render('rating')">Rating</button>
+        </div>
+    </div>
+
+    <div class="archive-grid" id="grid"></div>
+
+    <script>
+        // Use your original games array here
+        const games = [
+            { n: "A Plague Tale: Innocence", s: 9, d: "In medieval France, siblings Amicia and Hugo flee the Inquisition and supernatural rats.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/752590/library_600x900_2x.jpg" },
+            { n: "Assassins Creed 3", s: 7, d: "Connor Kenway fights for freedom during the American Revolution.", i: "ac3.jpg" },
+            { n: "Assassins Creed Black Flag", s: 9, d: "A pirate is drawn into the Assassin-Templar war during the Golden Age of Piracy.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/242050/library_600x900_2x.jpg" },
+            { n: "Assassins Creed Mirage", s: 4, d: "Follow Basim, a street thief seeking answers in 9th-century Baghdad.", i: "ac-mirage.jpg" },
+            { n: "Assassins Creed Origins", s: 7.5, d: "The founding of the Brotherhood set in the sands of Ancient Egypt.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/582160/library_600x900_2x.jpg" },
+            { n: "Assassins Creed Rogue", s: 8, d: "Experience the ultimate betrayal as Shay Cormac turns from Assassin to hunter.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/311560/library_600x900_2x.jpg" },
+            { n: "Black Myth Wukong", s: 9.5, d: "The Destined One travels through Chinese mythology to uncover an ancient legend.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2358720/library_600x900_2x.jpg" },
+            { n: "Borderlands 1", s: 8, d: "Four Vault Hunters arrive on Pandora to find a legendary stash of alien tech.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/729040/library_600x900_2x.jpg" },
+            { n: "Borderlands 2", s: 10, d: "A new team of Vault Hunters must stop Handsome Jack from destroying Pandora.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/49520/library_600x900_2x.jpg" },
+            { n: "Borderlands 3", s: 8.5, d: "The Vault Hunters must stop the Calypso Twins from claiming the galaxy's ultimate power.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/397540/library_600x900_2x.jpg" },
+            { n: "COD: Modern Warfare 1", s: 8, d: "Captain Price leads special forces to stop an ultra-nationalist nuclear threat.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/7940/library_600x900_2x.jpg" },
+            { n: "COD: Modern Warfare 2", s: 8.5, d: "Task Force 141 hunts Makarov across the globe while uncovering a deep betrayal.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/10180/library_600x900_2x.jpg" },
+            { n: "COD: Modern Warfare 3", s: 9.5, d: "The dramatic conclusion to the trilogy as the world goes into total war.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/42680/library_600x900_2x.jpg" },
+            { n: "Cyberpunk 2077", s: 9, d: "Mercenary V takes on a heist that lands a digital ghost in their brain.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1091500/library_600x900_2x.jpg" },
+            { n: "Detroit Become Human", s: 9, d: "Androids fight for consciousness and rights in a near-future Detroit.", i: "dbh.jpg" },
+            { n: "DMC 5", s: 7, d: "Dante and Nero return for high-octane demon hunting to stop a massive tree.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/601150/library_600x900_2x.jpg" },
+            { n: "Elden Ring", s: 9, d: "A Tarnished warrior seeks to claim the Elden Ring and become the new Elden Lord.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1245620/library_600x900_2x.jpg" },
+            { n: "Far Cry 3", s: 9, d: "Jason Brody must rescue his friends from the insane pirate Vaas.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/220240/library_600x900_2x.jpg" },
+            { n: "Ghost Of Tsushima", s: 10, d: "Jin Sakai defends his home from Mongols by becoming the feared 'Ghost'.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2215430/library_600x900_2x.jpg" },
+            { n: "God Of War 2018", s: 8, d: "Kratos and Atreus journey through Norse realms to fulfill a final wish.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1593500/library_600x900_2x.jpg" },
+            { n: "God Of War Ragnarök", s: 9, d: "Father and son prepare for the end of the world during Ragnarök.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2322010/library_600x900_2x.jpg" },
+            { n: "Hollow Knight", s: 9, d: "A silent knight explores the vast, ruined underground kingdom of Hallownest.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900_2x.jpg" },
+            { n: "Hollow Knight: Silksong", s: 10, d: "Hornet, princess-protector of Hallownest, journeys to a new kingdom.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1030300/library_600x900_2x.jpg" },
+            { n: "Madison", s: 6, d: "Psychological horror using a camera that connects you to a dark history.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1670870/library_600x900_2x.jpg" },
+            { n: "Mafia: Definitive Edition", s: 8, d: "Tommy Angelo rises through the Salieri crime family in 1930s America.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1030840/library_600x900_2x.jpg" },
+            { n: "Raji: An Ancient Epic", s: 9, d: "A young girl is chosen by the gods to stop a demon lord in ancient India.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/730390/library_600x900_2x.jpg" },
+            { n: "RDR 2", s: 10, d: "Arthur Morgan navigates the dying days of the American Wild West.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1174180/library_600x900_2x.jpg" },
+            { n: "Resident Evil 2", s: 10, d: "Leon and Claire attempt to survive the zombie outbreak in Raccoon City.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/883710/library_600x900_2x.jpg" },
+            { n: "Resident Evil 3", s: 7, d: "Jill Valentine escapes Raccoon City while hunted by the Nemesis.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/952060/library_600x900_2x.jpg" },
+            { n: "Resident Evil 4", s: 10, d: "Leon Kennedy rescues the President's daughter from a terrifying cult.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2050650/library_600x900_2x.jpg" },
+            { n: "Resident Evil 6", s: 6, d: "Heroes across the globe fight a massive C-Virus outbreak.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/221040/library_600x900_2x.jpg" },
+            { n: "Resident Evil Village", s: 9, d: "Ethan Winters fights monstrous lords to find his daughter.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1196590/library_600x900_2x.jpg" },
+            { n: "Saints Row 3", s: 8, d: "The Third Street Saints take over the city of Steelport.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/55230/library_600x900_2x.jpg" },
+            { n: "Saints Row 4", s: 7, d: "The Saints fight an alien invasion with superpowers inside a simulation.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/206420/library_600x900_2x.jpg" },
+            { n: "Sekiro", s: 10, d: "A shinobi named Wolf seeks revenge on the clan that kidnapped his master.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/814380/library_600x900_2x.jpg" },
+            { n: "Sleeping Dogs", s: 8, d: "Undercover cop Wei Shen infiltrates the Hong Kong Triads.", i: "sd.jpg" },
+            { n: "Star Wars: Jedi Fallen Order", s: 8, d: "A Jedi Padawan in hiding must rebuild the Order under the Empire.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1172380/library_600x900_2x.jpg" },
+            { n: "Stray", s: 10, d: "A stray cat in a forgotten cybercity finds its way home with a drone.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1332010/library_600x900_2x.jpg" },
+            { n: "The Last Of Us Part 1", s: 10, d: "Joel and Ellie journey across a fungus-ravaged America.", i: "tlu.jpg" },
+            { n: "The Last Of Us Part 2", s: 10, d: "A violent event forces Ellie into a quest for revenge in Seattle.", i: "tlu2.jpg" },
+            { n: "Tomb Raider 1: 2013", s: 8, d: "Lara's first survival adventure on the mysterious island of Yamatai.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/203160/library_600x900_2x.jpg" },
+            { n: "Tomb Raider 2: Rise", s: 7, d: "Lara searches for the lost city of Kitezh in Siberia.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/391220/library_600x900_2x.jpg" },
+            { n: "Tomb Raider 3: Shadow", s: 8, d: "Lara must master a deadly jungle and stop a Maya apocalypse.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/750920/library_600x900_2x.jpg" },
+            { n: "Uncharted 4: A Thief's End", s: 10, d: "Nathan Drake's final adventure leads him to a pirate colony.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1659420/library_600x900_2x.jpg" },
+            { n: "Uncharted: The Lost Legacy", s: 9, d: "Chloe and Nadine hunt for an ancient Indian artifact.", i: "ull.jpg" },
+            { n: "Until Dawn", s: 9, d: "Your decisions determine who survives a snowy night at a mountain lodge.", i: "ud.jpg" },
+            { n: "Watch Dogs 2", s: 8, d: "Hacker Marcus Holloway and DedSec take down a corrupt system.", i: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/447040/library_600x900_2x.jpg" }
+        ];
+
+        const grid = document.getElementById('grid');
+
+        function render(sortBy) {
+            grid.innerHTML = '';
+            if(sortBy === 'name') games.sort((a, b) => a.n.localeCompare(b.n));
+            else games.sort((a, b) => b.s - a.s);
+
+            games.forEach(g => {
+                const card = document.createElement('div');
+                card.className = 'card-container';
+                
+                // Detection logic: Check if card is too high or too low on screen
+                card.onmouseenter = (e) => {
+                    const rect = card.getBoundingClientRect();
+                    // If card is in the top 30% of screen, zoom from top
+                    if (rect.top < window.innerHeight * 0.3) card.classList.add('near-top');
+                    // If card is in the bottom 30% of screen, zoom from bottom
+                    else if (rect.bottom > window.innerHeight * 0.7) card.classList.add('near-bottom');
+                };
+                
+                card.onmouseleave = () => {
+                    card.classList.remove('near-top', 'near-bottom');
+                };
+
+                card.innerHTML = `<div class="card-inner">
+                    <div class="front"><img src="${g.i}" alt="${g.n}" onerror="this.src='https://via.placeholder.com/155x230/111/ff0000?text=RELOADING...'"></div>
+                    <div class="back">
+                        <p class="title">${g.n}</p>
+                        <p class="summary">${g.d}</p>
+                        <div class="rating-box">
+                            <div class="score-val">${g.s}/10</div>
+                            <div class="bar-bg"><div class="bar-fill" style="width:${g.s*10}%"></div></div>
+                        </div>
+                    </div>
+                </div>`;
+                grid.appendChild(card);
+            });
+        }
+        render('name');
+    </script>
+</body>
+</html>
